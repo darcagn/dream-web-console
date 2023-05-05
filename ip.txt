@@ -1,0 +1,11 @@
+Hardware ID   : SEGA SEGAKATANA
+Maker ID      : SEGA ENTERPRISES
+Device Info   : 0000 CD-ROM1/1
+Area Symbols  : JUE
+Peripherals   : E000F10
+Product No    : T0000
+Version       : V2.000
+Release Date  : VERSION
+Boot Filename : 1ST_READ.BIN
+SW Maker Name : ACK
+Game Title    : HTTPD-ACK
