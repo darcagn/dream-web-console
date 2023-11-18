@@ -1,3 +1,8 @@
+v20231117
+  + updated to latest KallistiOS
+  + adjust network buffer size for peformance gains
+  + 20+% dumping speed increase compared to v20080711
+
 v20230505
   + unofficial update by darcagn
   + code cleaned up and all compilation warnings eliminated

@@ -1,15 +1,9 @@
 httpd-ack next
 
-This is an unofficial port of httpd-ack to KallistiOS 2.0.0. See
-changelog for details. The intention was to update or add functionality
-to httpd-ack, but KOS 2.0's network performance at this time doesn't
-match the performance of the previous httpd-ack build using KOS1.x+lwIP.
-It takes about twice as long to dump a disc. Most people would probably
-prefer the better performance over new features, so in the mean time
-while KOS figures out the network stack, I'm publishing the code that I
-have worked out so far.
-
+This is an unofficial port of httpd-ack to KallistiOS 2.0.0.
+See changelog for details. The original documentation follows.
 -darcagn
+
 
 Usage
 =====

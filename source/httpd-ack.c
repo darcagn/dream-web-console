@@ -8,8 +8,6 @@
 #include <conio/conio.h>
 #include <unistd.h>
 
-extern uint8 romdisk[];
-KOS_INIT_ROMDISK(romdisk);
 KOS_INIT_FLAGS(INIT_DEFAULT | INIT_NET);
 
 mutex_t cdrom_mutex = MUTEX_INITIALIZER;
@@ -202,6 +200,10 @@ void send_track(http_state_t *hs, int ipbintoc, int session, int track, int secp
   int attempt, rv;
   int offset, data_size;
   buf = nocache = NULL;
+
+  uint32_t new_buf_sz = 65535;
+  setsockopt(hs->socket, SOL_SOCKET, SO_SNDBUF, &new_buf_sz, sizeof(new_buf_sz));
+  setsockopt(hs->socket, SOL_SOCKET, SO_RCVBUF, &new_buf_sz, sizeof(new_buf_sz));
 
   conio_printf("s:%d toc:%d t:%d p:%d cdxa:%d ss:%d dma:%d sr:%d sub:%d retry:%d ab:%d\n",
            ipbintoc, session, track, secpart, cdxa, sector_size, dma, sector_read,
