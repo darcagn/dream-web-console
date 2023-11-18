@@ -14,6 +14,7 @@ include $(KOS_BASE)/Makefile.rules
 clean: rm-elf
 	-rm -f $(OBJS)
 	-rm -f romdisk/httpd-ack-source-*.zip
+	-rm -f httpd-ack.cdi
 
 rm-elf:
 	-rm -f $(TARGET) romdisk.*
@@ -30,3 +31,6 @@ run: $(TARGET)
 dist: $(TARGET)
 	-rm -f $(OBJS) romdisk.img
 	$(KOS_STRIP) $(TARGET)
+
+disc: $(TARGET)
+	mkdcdisc -a httpd-ack -e httpd-ack.elf -m -n httpd-ack -r $(VERSION) -o httpd-ack.cdi
