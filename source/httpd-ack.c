@@ -305,8 +305,11 @@ void send_track(http_state_t *hs, int ipbintoc, int session, int track, int secp
       sector_read = sector_end - sector;
     }
 
-    // poison the entire malloc
-    memset(nocache, 'Q', SECTOR_BUFFER);
+    data_size = (sector_size * sector_read);
+
+    // poison the malloc when reading raw sectors
+    if (sector_size == 2352)
+      memset(nocache, 'Q', data_size);
     attempt = 0;
 
     do {
@@ -324,8 +327,6 @@ void send_track(http_state_t *hs, int ipbintoc, int session, int track, int secp
         if(abort)
           goto send_track_out;
     }
-
-    data_size = (sector_size * sector_read);
 
     // syscall method of getting sub channel data
     if(sub == SUB_SYSCALL) {
