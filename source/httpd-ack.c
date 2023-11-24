@@ -337,7 +337,7 @@ void send_track(http_state_t *hs, int ipbintoc, int session, int track, int secp
           goto send_track_out;
       }
       // shift over 4 bytes to get rid of unneeded header
-      memcpy(nocache+sector_size, nocache+sector_size+4, 96);
+      memmove(nocache+sector_size, nocache+sector_size+4, 96);
       data_size += 96;
 
     // cdrom_read_sectors_ex method of getting sub channel data
@@ -357,7 +357,7 @@ void send_track(http_state_t *hs, int ipbintoc, int session, int track, int secp
       }
 
       // shift over 4 bytes to get rid of unneeded header
-      memcpy(nocache+sector_size, nocache+sector_size+4, 96);
+      memmove(nocache+sector_size, nocache+sector_size+4, 96);
       data_size += 96;
 
       // reset the read datatype
