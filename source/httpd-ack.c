@@ -330,7 +330,7 @@ void send_track(http_state_t *hs, int ipbintoc, int session, int track, int secp
     // syscall method of getting sub channel data
     if(sub == SUB_SYSCALL) {
 
-      rv = cdrom_get_subcode(nocache+sector_size, 100, CD_SUB_Q_CHANNEL);
+      rv = cdrom_get_subcode(nocache+sector_size, 100, CD_SUB_Q_ALL);
       if(rv != ERR_OK) {
         conio_printf("SUB ERROR: sector: %d, FAILED\n", sector);
         if(abort)
