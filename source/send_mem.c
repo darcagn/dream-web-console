@@ -1,7 +1,7 @@
 #include "common.h"
 
 void send_memory(http_state_t *hs, size_t start, size_t end) {
-    conio_printf("sending memory 0x%lx - 0x%lx, socket %d\n", start, end, hs->socket);
+    DWC_LOG("sending memory 0x%lx - 0x%lx, socket %d\n", start, end, hs->socket);
 
     ptrdiff_t data_size = end - start + 1;
     if(data_size <= 0) {

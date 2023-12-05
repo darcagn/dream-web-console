@@ -60,11 +60,11 @@ int read_headers(http_state_t *hs, char *buffer, size_t bufsize) {
 #define HEADER_BUFSIZE 1024
 void *client_thread(void *p) {
     http_state_t *hs = (http_state_t *)p;
-    conio_printf("httpd: client thread started, socket %d\n", hs->socket);
+    DWC_LOG("httpd: client thread started, socket %d\n", hs->socket);
 
     char *buf = malloc(HEADER_BUFSIZE);
     if(buf == NULL) {
-        conio_printf("httpd: malloc failure in client_thread(), socket %d\n",
+        DWC_LOG("httpd: malloc failure in client_thread(), socket %d\n",
                      hs->socket);
         goto client_thread_out;
     }
@@ -73,7 +73,7 @@ void *client_thread(void *p) {
         goto client_thread_out;
     }
 
-    conio_printf("httpd: client request '%s', socket %d\n", buf, hs->socket);
+    DWC_LOG("httpd: client request '%s', socket %d\n", buf, hs->socket);
 
     unsigned ipbintoc, datasel, trktype, dma, sub, abort;
     size_t session, track, secsz, secrd, gap, retry;
@@ -253,12 +253,15 @@ void *client_thread(void *p) {
 
     client_thread_out:
 
-    conio_printf("httpd: closed connection, socket %d\n", hs->socket);
+    DWC_LOG("httpd: closed connection, socket %d\n", hs->socket);
 
-    free(buf);
-    buf = NULL;
+#ifdef MALLOC_STATS
+    printf("Finished with thread on socket %d...\n", hs->socket);
+    malloc_stats();
+#endif
+
+    FREE(buf);
     close(hs->socket);
-    free(hs);
-    hs = NULL;
+    FREE(hs);
     return NULL;
 }

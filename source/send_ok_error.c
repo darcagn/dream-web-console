@@ -30,7 +30,7 @@ void send_error(http_state_t *hs, unsigned error_code, const char *error_str) {
         sprintf(buf, "%d %s   %s", error_code, error_str,
                 "...and malloc() failure when trying to present error page!");
         write(hs->socket, buf, strlen(buf));
-        conio_printf("malloc failure in send_error(), socket %d\n", hs->socket);
+        DWC_LOG("malloc failure in send_error(), socket %d\n", hs->socket);
         return;
     }
 
@@ -53,7 +53,6 @@ void send_error(http_state_t *hs, unsigned error_code, const char *error_str) {
         cursor += rv;
     }
     send_out:
-    free(output);
-    output = NULL;
+    FREE(output);
 }
 

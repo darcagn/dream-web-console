@@ -3,7 +3,7 @@
 #define FSFILE_BUFFER        32768
 
 void send_fsfile(http_state_t *hs, char *file) {
-    conio_printf("sending fsfile %s, socket %d\n", file, hs->socket);
+    DWC_LOG("sending fsfile %s, socket %d\n", file, hs->socket);
 
     file_t fd = fs_open(file, O_RDONLY);
     if(fd < 0) {
@@ -14,7 +14,7 @@ void send_fsfile(http_state_t *hs, char *file) {
     char *output = malloc(FSFILE_BUFFER);
     if(!output) {
         send_error(hs, 404, "ERROR: malloc failure in send_fsfile()");
-        conio_printf("malloc failure in send_fsfile(), socket %d\n", hs->socket);
+        DWC_LOG("malloc failure in send_fsfile(), socket %d\n", hs->socket);
         return;
     }
 
@@ -33,6 +33,5 @@ void send_fsfile(http_state_t *hs, char *file) {
     }
     send_out:
     fs_close(fd);
-    free(output);
-    output = NULL;
+    FREE(output);
 }

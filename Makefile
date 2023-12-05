@@ -1,10 +1,10 @@
 # Dream Web Console - Makefile
 
-VERSION = "202311XX"
+VERSION = "202312XX"
 TARGET = dream-web-console.elf
 
-# Poison GD-ROM read buffer with 'Q'?
-POISON = 1
+# Enable printing of malloc stats to console?
+MALLOC_STATS = 1
 
 # Core modules
 OBJS = source/dwc.o source/client_thread.o source/style.o romdisk.o
@@ -18,7 +18,7 @@ OBJS += source/gdrom/get_toc.o source/gdrom/send_disc_index.o source/gdrom/send_
 OBJS += source/gdrom/send_track.o
 
 KOS_ROMDISK_DIR = romdisk
-KOS_CFLAGS += -O3 -flto=auto -DVERSION=$(VERSION) -DPOISON=$(POISON)
+KOS_CFLAGS += -O3 -flto=auto -DVERSION=$(VERSION) -DMALLOC_STATS=$(MALLOC_STATS)
 ZIPPED_FILES = CHANGELOG.md LICENSE README.md README.KOS Makefile source/ romdisk/
 
 all: rm-elf $(TARGET)

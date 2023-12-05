@@ -3,19 +3,19 @@
 
 /* Send GDI file */
 void send_gdi(http_state_t *hs, bool ipbintoc, unsigned defaulttype) {
-    conio_printf("sending gdi file, socket %d\n", hs->socket);
+    DWC_LOG("sending gdi file, socket %d\n", hs->socket);
 
     /* Retrieve TOCs to create track listing */
     CDROM_TOC toc1, toc2;
 
     if(get_toc(&toc1, 0, 0) != ERR_OK) {
-        conio_printf("FATAL: Failed to read toc, session %d\n", 1);
+        DWC_LOG("FATAL: Failed to read toc, session %d\n", 1);
         send_error(hs, 404, "No disc in drive? (error reading session 1 TOC)");
         return;
     }
 
     if(get_toc(&toc2, 1, ipbintoc) != ERR_OK) {
-        conio_printf("FATAL: Failed to read toc, session %d\n", 2);
+        DWC_LOG("FATAL: Failed to read toc, session %d\n", 2);
         send_error(hs, 404, "Not a dreamcast disc (2nd session)");
         return;
     }
@@ -26,7 +26,7 @@ void send_gdi(http_state_t *hs, bool ipbintoc, unsigned defaulttype) {
     FILE *page = open_memstream(&output, &output_size);
     if(!page) {
         send_error(hs, 404, "Could not create new buffer for page");
-        conio_printf("Error %d when creating buffer for socket %d\n", errno, hs->socket);
+        DWC_LOG("Error %d when creating buffer for socket %d\n", errno, hs->socket);
         return;
     }
 
@@ -93,6 +93,5 @@ void send_gdi(http_state_t *hs, bool ipbintoc, unsigned defaulttype) {
         cursor += rv;
     }
     send_out:
-    free(output);
-    output = NULL;
+    FREE(output);
 }

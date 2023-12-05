@@ -14,6 +14,7 @@
 - Dynamically size send buffers to avoid overflows
 - source.zip download now works again
 - Dynamically size disc read buffer to improve dumping speed/performance
+- Alter subchannel dumping code to be more efficient, though if it doesn't improve transfer speed
 - Add gdrom_spin_down alias for cdrom_spin_down
 - Adjusted look and feel with a new dark style
 - Client connections now display IP address correctly in log

@@ -46,30 +46,19 @@ void trim_cdrom_info(char *input, char *output, size_t size) {
 }
 
 void send_disc_index(http_state_t *hs, bool ipbintoc, unsigned defaulttype) {
-    /* Set up stream for webpage content */
-    char *output;
-    size_t output_size = 0;
-    FILE *page = open_memstream(&output, &output_size);
-    if(!page) {
-        send_error(hs, 404, "Could not create new buffer for page");
-        conio_printf("Error %d when creating buffer for socket %d\n", errno, hs->socket);
-        return;
-    }
-
-    /* Write webpage content to stream */
-    fprintf(page, "<html><head>");
-    fprintf(page, stylesheet);
-    fprintf(page, "<title>Dream Web Console - Dump Disc</title></head></html>\n<body>\n");
-    fprintf(page, "<h1>Dream Web Console - Listing of GD-ROM</h1>\n<hr>\n<table width=\"640\">\n");
+    WEBPAGE_START("Dream Web Console - Dump Disc");
+    WEBPAGE_WRITE("<h1>Dream Web Console - Listing of GD-ROM</h1>\n"
+                  "<hr>\n<table width=\"640\">\n");
 
     /* Reinitialize drive */
     if(cdrom_reinit_ex(-1,-1,-1) != ERR_OK) {
-        fprintf(page, "ERROR: cdrom_reinit_ex() failed");
+        WEBPAGE_WRITE("ERROR: cdrom_reinit_ex() failed");
         goto send_toc_out;
     }
 
     /* Write GD-ROM info */
-    fprintf(page, "<tr cellpadding=\"2\"><td class=\"top\">GD-ROM</td><td colspan=\"3\" class=\"top\">INFO</td></tr>\n");
+    WEBPAGE_WRITE("<tr cellpadding=\"2\"><td class=\"top\">GD-ROM</td>"
+                  "<td colspan=\"3\" class=\"top\">INFO</td></tr>\n");
 
     char sector[2352], info[129];
     bool sendgdi = false;
@@ -85,32 +74,42 @@ void send_disc_index(http_state_t *hs, bool ipbintoc, unsigned defaulttype) {
             for(size_t i = 0; i < sizeof(cdrom_info) / sizeof(cdrom_info_t);i++) {
                 trim_cdrom_info(sector + cdrom_info[i].start, info,
                                 cdrom_info[i].end - cdrom_info[i].start + 1);
-                fprintf(page, "<tr><td>%s</td><td colspan=\"3\">%s</td></tr>\n",cdrom_info[i].name, info);
+                WEBPAGE_WRITE("<tr><td>%s</td><td colspan=\"3\">%s</td></tr>\n",
+                              cdrom_info[i].name, info);
             }
-            fprintf(page, "<tr><td>Dump Preset:</td><td colspan=\"3\">");
+            WEBPAGE_WRITE("<tr><td>Dump Preset:</td><td colspan=\"3\">");
             switch(defaulttype) {
                 case DEFAULT_DUMP_TYPE_DATA:
-                    fprintf(page, "Standard data (2048 bytes per sector)<br />Using %s</td></tr>\n",
-                            (ipbintoc ? "using IP.BIN TOC" : "standard TOC"));
+                    WEBPAGE_WRITE("Standard data (2048 bytes per sector)"
+                                  "<br />Using %s</td></tr>\n",
+                                  (ipbintoc ? "using IP.BIN TOC" : "standard TOC"));
                     break;
                 case DEFAULT_DUMP_TYPE_RAW:
-                    fprintf(page, "Raw data (2352 bytes per sector)<br />Using %s</td></tr>\n",
-                            (ipbintoc ? "using IP.BIN TOC" : "standard TOC"));
+                    WEBPAGE_WRITE("Raw data (2352 bytes per sector)"
+                                  "<br />Using %s</td></tr>\n",
+                                  (ipbintoc ? "using IP.BIN TOC" : "standard TOC"));
                     break;
                 case DEFAULT_DUMP_TYPE_SUB:
-                    fprintf(page, "Raw data + sub channels (2448 bytes per sector)<br />Using %s</td></tr>\n",
-                            (ipbintoc ? "using IP.BIN TOC" : "standard TOC"));
+                    WEBPAGE_WRITE("Raw data + sub channels (2448 bytes per sector)"
+                                  "<br />Using %s</td></tr>\n",
+                                  (ipbintoc ? "using IP.BIN TOC" : "standard TOC"));
                     break;
             }
         } else {
-            fprintf(page, "<tr><td colspan=\"4\">WARN: Not a Dreamcast disc, bad header signature!</td></td>\n");
+            WEBPAGE_WRITE("<tr><td colspan=\"4\">"
+                          "WARN: Not a Dreamcast disc, bad header signature!"
+                          "</td></td>\n");
         }
     } else {
-        fprintf(page, "<tr><td colspan=\"4\">WARN: Not a Dreamcast disc, read failed!</td></td>\n");
+        WEBPAGE_WRITE("<tr><td colspan=\"4\">"
+                      "WARN: Not a Dreamcast disc, read failed!"
+                      "</td></td>\n");
     }
 
-    fprintf(page, "<tr cellpadding=\"2\"><td class=\"top\">Track</td><td align=\"right\" class=\"top\">Start Sector</td>");
-    fprintf(page, "<td align=\"right\" class=\"top\">End Sector</td><td align=\"right\" class=\"top\">Track Size</td></tr>");
+    WEBPAGE_WRITE("<tr cellpadding=\"2\"><td class=\"top\">Track</td>"
+                  "<td align=\"right\" class=\"top\">Start Sector</td>"
+                  "<td align=\"right\" class=\"top\">End Sector</td>"
+                  "<td align=\"right\" class=\"top\">Track Size</td></tr>");
 
     CDROM_TOC toc;
     size_t session, track, track_size, track_start, track_end, gap;
@@ -118,7 +117,7 @@ void send_disc_index(http_state_t *hs, bool ipbintoc, unsigned defaulttype) {
 
     for(session = 0; session < 2; session++) {
         if(get_toc(&toc, session, (session == 1 ? ipbintoc : 0)) != ERR_OK) {
-            conio_printf("WARN: Failed to read TOC for session %d\n", session + 1);
+            DWC_LOG("WARN: Failed to read TOC for session %d\n", session + 1);
             continue;
         }
 
@@ -145,42 +144,48 @@ void send_disc_index(http_state_t *hs, bool ipbintoc, unsigned defaulttype) {
             switch (defaulttype) {
                 case DEFAULT_DUMP_TYPE_DATA:
                     track_size = (track_type == TRACK_DATA ? 2048 : 2352) * (track_end - track_start + 1);
-                    fprintf(page, "<tr><td><a href=\"track%02d.%s?ipbintoc%d_session%02d_datasel%d_trktype%d_secsz%d_gap%d_dma%d_secrd%d_sub%d_abort%d_retry%d\">",
+                    WEBPAGE_WRITE("<tr><td><a href=\"track%02d.%s?ipbintoc%d_session%02d_datasel%d_trktype%d_secsz%d_gap%d_dma%d_secrd%d_sub%d_abort%d_retry%d\">",
                             track, (track_type == TRACK_DATA ? "iso" : "raw"),
                             ipbintoc, session + 1,
                             (track_type == TRACK_DATA ? DATASEL_DATA : DATASEL_OTHER),
                             (track_type == TRACK_DATA ? TRACK_TYPE_MODE1 : TRACK_TYPE_CDDA),
                             (track_type == TRACK_DATA ? 2048 : 2352),
                             gap, 1, 16, 0, 1, 5);
-                    fprintf(page, "track%02d.%s</a></td><td align=\"right\">%d</td><td align=\"right\">%d</td><td align=\"right\">%d</td></tr>\n",
+                    WEBPAGE_WRITE("track%02d.%s</a></td><td align=\"right\">%d</td><td align=\"right\">%d</td><td align=\"right\">%d</td></tr>\n",
                             track, (track_type == TRACK_DATA ? "iso" : "raw"),
                             track_start, track_end, track_size);
                     break;
                 case DEFAULT_DUMP_TYPE_RAW:
                     track_size = 2352 * (track_end - track_start + 1);
-                    fprintf(page, "<tr><td><a href=\"track%02d.%s?ipbintoc%d_session%02d_datasel%d_trktype%d_secsz%d_gap%d_dma%d_secrd%d_sub%d_abort%d_retry%d\">",
+                    WEBPAGE_WRITE("<tr><td><a href=\"track%02d.%s?ipbintoc%d_session%02d_datasel%d_trktype%d_secsz%d_gap%d_dma%d_secrd%d_sub%d_abort%d_retry%d\">",
                             track, (track_type == TRACK_DATA ? "bin" : "raw"),
                             ipbintoc, session + 1,
                             DATASEL_OTHER,
                             TRACK_TYPE_ANY,
                             2352,
                             gap, 1, 16, 0, 1, 5);
-                    fprintf(page, "track%02d.%s</a></td><td align=\"right\">%d</td><td align=\"right\">%d</td><td align=\"right\">%d</td></tr>\n",
-                            track, (track_type == TRACK_DATA ? "bin" : "raw"),
-                            track_start, track_end, track_size);
+                    WEBPAGE_WRITE("track%02d.%s</a></td>"
+                                  "<td align=\"right\">%d</td>"
+                                  "<td align=\"right\">%d</td>"
+                                  "<td align=\"right\">%d</td></tr>\n",
+                                  track, (track_type == TRACK_DATA ? "bin" : "raw"),
+                                  track_start, track_end, track_size);
                     break;
                 case DEFAULT_DUMP_TYPE_SUB:
                     track_size = 2448 * (track_end - track_start + 1);
-                    fprintf(page, "<tr><td><a href=\"track%02d.%s?ipbintoc%d_session%02d_datasel%d_trktype%d_secsz%d_gap%d_dma%d_secrd%d_sub%d_abort%d_retry%d\">",
+                    WEBPAGE_WRITE("<tr><td><a href=\"track%02d.%s?ipbintoc%d_session%02d_datasel%d_trktype%d_secsz%d_gap%d_dma%d_secrd%d_sub%d_abort%d_retry%d\">",
                             track, (track_type == TRACK_DATA ? "bin" : "raw"),
                             ipbintoc, session + 1,
                             DATASEL_OTHER,
                             TRACK_TYPE_ANY,
                             2352,
                             gap, 0, 1, 1, 1, 5);
-                    fprintf(page, "track%02d.%s</a></td><td align=\"right\">%d</td><td align=\"right\">%d</td><td align=\"right\">%d</td></tr>\n",
-                            track, (track_type == TRACK_DATA ? "bin" : "raw"),
-                            track_start, track_end, track_size);
+                    WEBPAGE_WRITE("track%02d.%s</a></td>"
+                                  "<td align=\"right\">%d</td>"
+                                  "<td align=\"right\">%d</td>"
+                                  "<td align=\"right\">%d</td></tr>\n",
+                                  track, (track_type == TRACK_DATA ? "bin" : "raw"),
+                                  track_start, track_end, track_size);
                     break;
             }
         }
@@ -188,15 +193,18 @@ void send_disc_index(http_state_t *hs, bool ipbintoc, unsigned defaulttype) {
 
     /* Create a misc section for GDI file */
     if(sendgdi) {
-        fprintf(page, "<tr cellpadding=\"2\"><td class=\"top\">Misc</td><td colspan=\"3\" class=\"top\">Info</td></tr>");
+        WEBPAGE_WRITE("<tr cellpadding=\"2\"><td class=\"top\">Misc</td>"
+                      "<td colspan=\"3\" class=\"top\">Info</td></tr>");
         switch (defaulttype) {
             case DEFAULT_DUMP_TYPE_DATA:
-                fprintf(page, "<tr><td><a href=\"disc.gdi%s\">disc.gdi</a></td><td colspan=\"3\">GDI file (2048-sector ISO format)</td></tr>",
-                        (ipbintoc ? "?data_ipbintoc" : "?data"));
+                WEBPAGE_WRITE("<tr><td><a href=\"disc.gdi%s\">disc.gdi</a></td>"
+                              "<td colspan=\"3\">GDI file (2048-sector ISO format)</td></tr>",
+                              (ipbintoc ? "?data_ipbintoc" : "?data"));
                 break;
             case DEFAULT_DUMP_TYPE_RAW:
-                fprintf(page, "<tr><td><a href=\"disc.gdi%s\">disc.gdi</a></td><td colspan=\"3\">GDI file (2352-sector BIN format)</td></tr>",
-                        (ipbintoc ? "?raw_ipbintoc" : "?raw"));
+                WEBPAGE_WRITE("<tr><td><a href=\"disc.gdi%s\">disc.gdi</a></td>"
+                              "<td colspan=\"3\">GDI file (2352-sector BIN format)</td></tr>",
+                              (ipbintoc ? "?raw_ipbintoc" : "?raw"));
                 break;
             case DEFAULT_DUMP_TYPE_SUB:
                 break;
@@ -205,23 +213,7 @@ void send_disc_index(http_state_t *hs, bool ipbintoc, unsigned defaulttype) {
 
     send_toc_out:
 
-    fprintf(page, "</table>");
-    fprintf(page, html_footer);
+    WEBPAGE_WRITE("</table>");
 
-    /* Write output to socket */
-    fclose(page);
-    send_ok(hs, "text/html", -1);
-    char *cursor = output;
-    while(output_size > 0) {
-        int rv = write(hs->socket, cursor, output_size);
-        if (rv <= 0) {
-            goto send_out;
-            return;
-        }
-        output_size -= rv;
-        cursor += rv;
-    }
-    send_out:
-    free(output);
-    output = NULL;
+    WEBPAGE_FINISH();
 }

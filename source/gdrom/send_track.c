@@ -7,7 +7,7 @@ void send_track(http_state_t *hs, bool ipbintoc, size_t session, size_t track, u
                 unsigned trktype, size_t secsz, size_t gap, unsigned dma, size_t secrd,
                 unsigned sub, bool abort, size_t retry) {
 
-    conio_printf("s:%d toc:%d t:%d ds:%d tt:%d ss:%d dma:%d sr:%d sub:%d retry:%d ab:%d\n",
+    DWC_LOG("s:%d toc:%d t:%d ds:%d tt:%d ss:%d dma:%d sr:%d sub:%d retry:%d ab:%d\n",
                 ipbintoc, session, track, datasel, trktype, secsz, dma, secrd,
                 sub, retry, abort);
 
@@ -33,12 +33,9 @@ void send_track(http_state_t *hs, bool ipbintoc, size_t session, size_t track, u
         default:                     trktype = 0x0000; break;
     }
 
-    if(!POISON)
-        conio_printf("WARN: malloc poisoning disabled!\n");
-
     /* Sector size must be in the range 1 to 2352 */
     if(secsz <= 0 || secsz > 2352) {
-        conio_printf("WARN: Invalid sector size %d, forcing 2352\n", secsz);
+        DWC_LOG("WARN: Invalid sector size %d, forcing 2352\n", secsz);
         secsz = 2352;
     }
 
@@ -47,27 +44,27 @@ void send_track(http_state_t *hs, bool ipbintoc, size_t session, size_t track, u
 
     /* Number of sectors to read must be in range 1 to MAX_SECTOR_READ */
     if(secrd > MAX_SECTOR_READ) {
-        conio_printf("WARN: secrd %d > MAX, forcing %d\n", secrd, MAX_SECTOR_READ);
+        DWC_LOG("WARN: secrd %d > MAX, forcing %d\n", secrd, MAX_SECTOR_READ);
         secrd = MAX_SECTOR_READ;
     } else if(secrd <= 0) {
-        conio_printf("WARN: secrd %d <= 0, forcing 1\n", secrd);
+        DWC_LOG("WARN: secrd %d <= 0, forcing 1\n", secrd);
         secrd = 1;
     }
 
     /* Make sure sub dumping is off, or set to syscalls, or set to manual read */
     if(sub > 2) {
-        conio_printf("WARN: invalid sub %d, forcing %d\n", sub, SUB_NONE);
+        DWC_LOG("WARN: invalid sub %d, forcing %d\n", sub, SUB_NONE);
         sub = SUB_NONE;
     }
 
     /* Correct parameters that are not compatible with sub dumping */
     if(sub) {
         if(secrd != 1) {
-            conio_printf("WARN: sub enabled, secrd forced to 1\n");
+            DWC_LOG("WARN: sub enabled, secrd forced to 1\n");
             secrd = 1;
         }
         if(dma) {
-            conio_printf("WARN: sub enabled, dma read disabled\n");
+            DWC_LOG("WARN: sub enabled, dma read disabled\n");
             dma = 0;
         }
     }
@@ -127,7 +124,7 @@ void send_track(http_state_t *hs, bool ipbintoc, size_t session, size_t track, u
     buf = memalign(32, buffer_sz);
     if(!buf) {
         send_error(hs, 404, "ERROR: malloc failure while sending track");
-        conio_printf("malloc failure while sending track on socket %d\n", hs->socket);
+        DWC_LOG("malloc failure while sending track on socket %d\n", hs->socket);
         goto send_track_out;
     }
 
@@ -154,14 +151,13 @@ void send_track(http_state_t *hs, bool ipbintoc, size_t session, size_t track, u
         size_t loop_data_size = (secsz + (sub ? 96 : 0)) * secrd;
 
         /* Poison the entire buffer */
-        if(POISON)
-            memset(nocache, 'Q', buffer_sz);
+        memset(nocache, 'Q', buffer_sz);
 
         /* Read secrd sectors until successful or number of retries exceeded */
         size_t attempt = 0;
         do {
             if(attempt != 0)
-                conio_printf("READ ERROR: sector: %d, retrying\n", sector);
+                DWC_LOG("READ ERROR: sector: %d, retrying\n", sector);
 
             rv = cdrom_read_sectors_ex(nocache, sector, secrd, dma);
             attempt++;
@@ -170,7 +166,7 @@ void send_track(http_state_t *hs, bool ipbintoc, size_t session, size_t track, u
 
         /* If abort parameter set and reading sectors never succeeded, quit */
         if(rv != ERR_OK) {
-            conio_printf("READ ERROR: sector: %d, FAILED\n", sector);
+            DWC_LOG("READ ERROR: sector: %d, FAILED\n", sector);
             if(abort)
                 goto send_track_out;
         }
@@ -178,46 +174,53 @@ void send_track(http_state_t *hs, bool ipbintoc, size_t session, size_t track, u
         /* Handle sub channels */
         /* NOTE: Memory offsets in this block are under
          * the assumption that secrd will be 1!  */
-        /* FIXME: We can increase the speed of this process by bypassing
-         * the memmove call. Instead of memmoving 96 bytes per sector
-         * read, we should save the last four bytes of the earlier
-         * sector read call, have the sub channel information overwrite
-         * them, then restore them after the sub channel is written */
-        if(sub == SUB_SYSCALL) {
-            /* Syscall method of getting sub channel data */
-            rv = cdrom_get_subcode(nocache+secsz, 100, CD_SUB_Q_ALL);
-            if(rv != ERR_OK) {
-                conio_printf("SUB ERROR: sector: %d, FAILED\n", sector);
-                if(abort)
-                    goto send_track_out;
-            }
-            /* Shift over 4 bytes to get rid of unneeded header */
-            memmove(nocache+secsz, nocache+secsz+4, 96);
+        if(sub) {
+            /* Subcode read call will return a 4-byte header that we don't
+             * want. So let's save the last 4 bytes of previous sector read
+             * on the stack and overwrite those bytes with the header; the
+             * other 96 bytes will be in the correct position, and then
+             * afterwards we can restore those 4 bytes we saved here */
+            uint8_t overlap[4];
+            memcpy(&overlap, nocache+secsz-4, 4);
 
-        } else if(sub == SUB_READ_SECTOR) {
-            /* cdrom_read_sectors_ex method of getting sub channel data */
-            if(cdrom_change_datatype(16, trktype, secsz) != ERR_OK) {
-                conio_printf("SUB ERROR: failed to set datatype (p=16)\n");
-                if(abort)
-                    goto send_track_out;
+            if(sub == SUB_SYSCALL) {
+                /* Syscall method of getting sub channel data */
+
+                /* Read subcode, overwriting the last 4 bytes of sector read
+                 * call in order to have the subcode data in the right spot */
+                rv = cdrom_get_subcode(nocache+secsz-4, 100, CD_SUB_Q_ALL);
+                if(rv != ERR_OK) {
+                    DWC_LOG("SUB ERROR: sector: %d, FAILED\n", sector);
+                    if(abort)
+                        goto send_track_out;
+                }
+            } else if(sub == SUB_READ_SECTOR) {
+                /* cdrom_read_sectors_ex method of getting sub channel data */
+                if(cdrom_change_datatype(16, trktype, secsz) != ERR_OK) {
+                    DWC_LOG("SUB ERROR: failed to set datatype (p=16)\n");
+                    if(abort)
+                        goto send_track_out;
+                }
+
+                /* Read subcode, overwriting the last 4 bytes of sector read
+                 * call in order to have the subcode data in the right spot */
+                rv = cdrom_read_sectors_ex(nocache+secsz-4, sector, secrd, dma);
+                if(rv != ERR_OK) {
+                    DWC_LOG("SUB ERROR: sector: %d, FAILED\n", sector);
+                    if(abort)
+                        goto send_track_out;
+                }
+
+                /* Reset the read datatype */
+                if(cdrom_change_datatype(datasel, trktype, secsz) != ERR_OK) {
+                    DWC_LOG("SUB ERROR: failed to reset datatype (datasel=%d)\n", datasel);
+                    if(abort)
+                        goto send_track_out;
+                }
             }
 
-            rv = cdrom_read_sectors_ex(nocache+secsz, sector, secrd, dma);
-            if(rv != ERR_OK) {
-                conio_printf("SUB ERROR: sector: %d, FAILED\n", sector);
-                if(abort)
-                    goto send_track_out;
-            }
-
-            /* Shift over 4 bytes to get rid of unneeded header */
-            memmove(nocache+secsz, nocache+secsz+4, 96);
-
-            /* Reset the read datatype */
-            if(cdrom_change_datatype(datasel, trktype, secsz) != ERR_OK) {
-                conio_printf("SUB ERROR: failed to reset datatype (datasel=%d)\n", datasel);
-                if(abort)
-                    goto send_track_out;
-            }
+            /* Overwrite subcode call header with the saved 4 bytes */
+            memcpy(nocache+secsz-4, &overlap, 4);
         } /* End sub channels handling */
 
         /* Write data for this loop out to socket */
@@ -232,6 +235,5 @@ void send_track(http_state_t *hs, bool ipbintoc, size_t session, size_t track, u
         sector += secrd;
     } while(sector < sector_end);
     send_track_out:
-    free(buf);
-    buf = NULL;
+    FREE(buf);
 }

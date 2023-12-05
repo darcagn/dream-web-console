@@ -55,4 +55,38 @@ void send_memory(http_state_t *hs, size_t start, size_t end);
 
 void send_fsfile(http_state_t *hs, char *file);
 
+#define FREE(x) \
+    free(x); \
+    x = NULL;
+
+#define DWC_LOG(...) conio_printf(__VA_ARGS__)
+
+#define WEBPAGE_START(x) \
+    char *dwc__page_output; \
+    size_t dwc__output_size; \
+    FILE *dwc__page = open_memstream(&dwc__page_output, &dwc__output_size); \
+    if(!dwc__page) { \
+        send_error(hs, 404, "Could not create new buffer for page"); \
+        DWC_LOG("Error %d when creating buffer for socket %d\n", errno, hs->socket); \
+        return; \
+    } \
+    WEBPAGE_WRITE("<html><head>%s<title>%s</title></head>\n<body>", stylesheet, x);
+
+#define WEBPAGE_WRITE(...) fprintf(dwc__page, __VA_ARGS__)
+
+#define WEBPAGE_FINISH() \
+    WEBPAGE_WRITE(html_footer); \
+    fclose(dwc__page); \
+    send_ok(hs, "text/html", -1); \
+    char *dwc__output_cursor = dwc__page_output; \
+    while(dwc__output_size > 0) { \
+        int rv = write(hs->socket, dwc__output_cursor, dwc__output_size); \
+        if (rv <= 0) \
+            goto dwc__send_out; \
+        dwc__output_size -= rv; \
+        dwc__output_cursor += rv; \
+    } \
+    dwc__send_out: \
+    FREE(dwc__page_output);
+
 #endif /* DWC_COMMON_H */
