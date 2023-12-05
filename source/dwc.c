@@ -1,3 +1,4 @@
+#include <poll.h>
 #include "common.h"
 
 #ifdef MALLOC_STATS
@@ -35,21 +36,11 @@ void *httpd(void *arg) {
     DWC_LOG("httpd: listening for connections on socket %d\n", listenfd);
 
     for ( ; ; ) {
-        int maxfdp1 = listenfd + 1;
-
-        fd_set readset, writeset;
-        FD_ZERO(&readset);
-        FD_ZERO(&writeset);
-        FD_SET(listenfd, &readset);
-
-        if(select(maxfdp1, &readset, &writeset, 0, 0) == 0)
-            continue;
-
-        http_state_t *hs;
+        struct pollfd fds = { .fd = listenfd, .events = POLLIN, .revents = 0 };
 
         /* Check for new incoming connections */
-        if(FD_ISSET(listenfd, &readset)) {
-            hs = calloc(1, sizeof(http_state_t));
+        if(poll(&fds, 1, -1) > 0 && fds.revents & POLLIN) {
+            http_state_t *hs = calloc(1, sizeof(http_state_t));
             hs->client_size = sizeof(hs->client);
             hs->socket = accept(listenfd, (struct sockaddr *)&hs->client, &hs->client_size);
 
@@ -77,6 +68,8 @@ void *httpd(void *arg) {
                 malloc_stats();
 #endif
             }
+        } else {
+            DWC_LOG("poll() error %d!\n", errno);
         }
     }
 }
