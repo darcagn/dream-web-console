@@ -5,8 +5,7 @@
 #define IPBIN_TOC_OFFSET 0xFC
 
 unsigned get_toc(CDROM_TOC *toc, size_t session, bool ipbintoc) {
-
-    memset(toc, 0, sizeof(CDROM_TOC));
+    *toc = (CDROM_TOC){0};
     char ipbin[2352];
 
     /* Use IP.BIN TOC instead of cached drive TOC */

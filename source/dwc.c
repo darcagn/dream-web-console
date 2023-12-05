@@ -15,8 +15,7 @@ void *httpd(void *arg) {
         return NULL;
     }
 
-    struct sockaddr_in saddr;
-    memset(&saddr, 0, sizeof(saddr));
+    struct sockaddr_in saddr = (struct sockaddr_in){0};
     saddr.sin_family = AF_INET;
     saddr.sin_addr.s_addr = htonl(INADDR_ANY);
     saddr.sin_port = htons(80);
