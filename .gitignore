@@ -1,3 +1,7 @@
+romdisk.img
+romdisk/dwc-source*.zip
+compile_commands.json
+
 # Prerequisites
 *.d
 
