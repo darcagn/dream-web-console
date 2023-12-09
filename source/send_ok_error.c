@@ -43,7 +43,6 @@ void send_error(http_state_t *hs, unsigned error_code, const char *error_str) {
 
     /* Write output to socket */
     fclose(page);
-    send_ok(hs, "text/html", -1);
     char *cursor = output;
     while(output_size > 0) {
         int rv = write(hs->socket, cursor, output_size);
