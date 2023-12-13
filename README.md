@@ -43,7 +43,7 @@ WIP
 - `http://IP/syscalls.bin` - Download syscalls data, (memory `0x8C000000` to `0x8C007FFF`)
 
 ## Dump memory region
-`http://IP/memory_startX_endX.bin` - Dumps memory from **startX** to **endX**
+`http://IP/memory_startX_endX` - Dumps memory from **startX** to **endX**. **X** is in hexadecimal representation.
 
 ## Advanced disc dumping options
 If you hover of the link for a track, you will see the link structure with various parameters. For example:

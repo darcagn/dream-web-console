@@ -1,7 +1,7 @@
 #include "common.h"
 
-void send_memory(http_state_t *hs, size_t start, size_t end) {
-    DWC_LOG("sending memory 0x%lx - 0x%lx, socket %d\n", start, end, hs->socket);
+void send_memory(http_state_t *hs, size_t start, size_t end, const char *filename) {
+    DWC_LOG("sending memory 0x%x - 0x%x, socket %d\n", start, end, hs->socket);
 
     ptrdiff_t data_size = end - start + 1;
     if(data_size <= 0) {
@@ -9,7 +9,15 @@ void send_memory(http_state_t *hs, size_t start, size_t end) {
         return;
     }
 
-    send_ok(hs, "application/octet-stream", data_size);
+    /* If no filename was specified, let's generate a pretty one */
+    if(!filename) {
+        char *gen_name;
+        asprintf(&gen_name, "mem_range_%x_-_%x.bin", start, end);
+        send_ok(hs, "application/octet-stream", data_size, gen_name, true);
+        FREE(gen_name);
+    } else {
+        send_ok(hs, "application/octet-stream", data_size, filename, true);
+    }
 
     /* write() doesnt like memory location to be zero,
      * so send that 1 byte, then the reset */

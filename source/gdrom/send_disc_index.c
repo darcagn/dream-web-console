@@ -46,10 +46,18 @@ void trim_cdrom_info(char *input, char *output, size_t size) {
 }
 
 void send_disc_index(http_state_t *hs, bool ipbintoc, unsigned defaulttype) {
+    if(mutex_trylock(&gdrom_mutex)) {
+        send_error(hs, 409, "GD-ROM spin down refused. GD-ROM is locked by another thread!");
+        DWC_LOG("httpd: Disc drive unlock refused on socket %d\n", hs->socket);
+        return;
+    }
+
     WEBPAGE_START("Dream Web Console - Dump Disc");
     WEBPAGE_WRITE("<h1>Dream Web Console - Listing of GD-ROM</h1>\n"
                   "<hr>\n<table width=\"640\">\n");
 
+    /* FIXME: We can put this before the header
+     * and direct to a send_error page */
     /* Reinitialize drive */
     if(cdrom_reinit_ex(-1,-1,-1) != ERR_OK) {
         WEBPAGE_WRITE("ERROR: cdrom_reinit_ex() failed");
@@ -144,7 +152,7 @@ void send_disc_index(http_state_t *hs, bool ipbintoc, unsigned defaulttype) {
             switch (defaulttype) {
                 case DEFAULT_DUMP_TYPE_DATA:
                     track_size = (track_type == TRACK_DATA ? 2048 : 2352) * (track_end - track_start + 1);
-                    WEBPAGE_WRITE("<tr><td><a href=\"track%02d.%s?ipbintoc%d_session%02d_datasel%d_trktype%d_secsz%d_gap%d_dma%d_secrd%d_sub%d_abort%d_retry%d\">",
+                    WEBPAGE_WRITE("<tr><td><a href=\"/disc/track%02d.%s?ipbintoc%d_session%02d_datasel%d_trktype%d_secsz%d_gap%d_dma%d_secrd%d_sub%d_abort%d_retry%d\">",
                             track, (track_type == TRACK_DATA ? "iso" : "raw"),
                             ipbintoc, session + 1,
                             (track_type == TRACK_DATA ? DATASEL_DATA : DATASEL_OTHER),
@@ -157,7 +165,7 @@ void send_disc_index(http_state_t *hs, bool ipbintoc, unsigned defaulttype) {
                     break;
                 case DEFAULT_DUMP_TYPE_RAW:
                     track_size = 2352 * (track_end - track_start + 1);
-                    WEBPAGE_WRITE("<tr><td><a href=\"track%02d.%s?ipbintoc%d_session%02d_datasel%d_trktype%d_secsz%d_gap%d_dma%d_secrd%d_sub%d_abort%d_retry%d\">",
+                    WEBPAGE_WRITE("<tr><td><a href=\"/disc/track%02d.%s?ipbintoc%d_session%02d_datasel%d_trktype%d_secsz%d_gap%d_dma%d_secrd%d_sub%d_abort%d_retry%d\">",
                             track, (track_type == TRACK_DATA ? "bin" : "raw"),
                             ipbintoc, session + 1,
                             DATASEL_OTHER,
@@ -173,7 +181,7 @@ void send_disc_index(http_state_t *hs, bool ipbintoc, unsigned defaulttype) {
                     break;
                 case DEFAULT_DUMP_TYPE_SUB:
                     track_size = 2448 * (track_end - track_start + 1);
-                    WEBPAGE_WRITE("<tr><td><a href=\"track%02d.%s?ipbintoc%d_session%02d_datasel%d_trktype%d_secsz%d_gap%d_dma%d_secrd%d_sub%d_abort%d_retry%d\">",
+                    WEBPAGE_WRITE("<tr><td><a href=\"/disc/track%02d.%s?ipbintoc%d_session%02d_datasel%d_trktype%d_secsz%d_gap%d_dma%d_secrd%d_sub%d_abort%d_retry%d\">",
                             track, (track_type == TRACK_DATA ? "bin" : "raw"),
                             ipbintoc, session + 1,
                             DATASEL_OTHER,
@@ -197,12 +205,12 @@ void send_disc_index(http_state_t *hs, bool ipbintoc, unsigned defaulttype) {
                       "<td colspan=\"3\" class=\"top\">Info</td></tr>");
         switch (defaulttype) {
             case DEFAULT_DUMP_TYPE_DATA:
-                WEBPAGE_WRITE("<tr><td><a href=\"disc.gdi%s\">disc.gdi</a></td>"
+                WEBPAGE_WRITE("<tr><td><a href=\"/disc/gdi%s\">disc.gdi</a></td>"
                               "<td colspan=\"3\">GDI file (2048-sector ISO format)</td></tr>",
                               (ipbintoc ? "?data_ipbintoc" : "?data"));
                 break;
             case DEFAULT_DUMP_TYPE_RAW:
-                WEBPAGE_WRITE("<tr><td><a href=\"disc.gdi%s\">disc.gdi</a></td>"
+                WEBPAGE_WRITE("<tr><td><a href=\"/disc/gdi%s\">disc.gdi</a></td>"
                               "<td colspan=\"3\">GDI file (2352-sector BIN format)</td></tr>",
                               (ipbintoc ? "?raw_ipbintoc" : "?raw"));
                 break;
@@ -216,4 +224,5 @@ void send_disc_index(http_state_t *hs, bool ipbintoc, unsigned defaulttype) {
     WEBPAGE_WRITE("</table>");
 
     WEBPAGE_FINISH();
+    mutex_unlock(&gdrom_mutex);
 }

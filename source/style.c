@@ -36,4 +36,5 @@ const char *stylesheet = R"DWC_CSS(
     </style>
     )DWC_CSS";
 
-const char *html_footer = "<hr />dream web console <a href=\"dwc-source-" VERSION ".zip\">" VERSION "</a> server - <a href=\"http://dreamcast.wiki/dwc\">https://dreamcast.wiki/dwc</a></body></html>";
+const char *html_footer = "\n\t<hr />dream web console <a href=\"dwc-source-" VERSION ".zip\">" VERSION
+                          "</a> server - <a href=\"http://dreamcast.wiki/dwc\">https://dreamcast.wiki/dwc</a>\n</body>\n</html>";

@@ -2,8 +2,16 @@
 #include "gdrom.h"
 
 /* Send GDI file */
-void send_gdi(http_state_t *hs, bool ipbintoc, unsigned defaulttype) {
+void send_gdi(http_state_t *hs, bool ipbintoc, unsigned defaulttype, bool view) {
+    if(mutex_trylock(&gdrom_mutex)) {
+        send_error(hs, 409, "GDI file download refused. GD-ROM is locked by another thread!");
+        DWC_LOG("httpd: Disc drive unlock refused on socket %d\n", hs->socket);
+        return;
+    }
+
     DWC_LOG("sending gdi file, socket %d\n", hs->socket);
+    char *output = NULL;
+    size_t output_size = 0;
 
     /* Retrieve TOCs to create track listing */
     CDROM_TOC toc1, toc2;
@@ -11,23 +19,21 @@ void send_gdi(http_state_t *hs, bool ipbintoc, unsigned defaulttype) {
     if(get_toc(&toc1, 0, 0) != ERR_OK) {
         DWC_LOG("FATAL: Failed to read toc, session %d\n", 1);
         send_error(hs, 404, "No disc in drive? (error reading session 1 TOC)");
-        return;
+        goto cleanup;
     }
 
     if(get_toc(&toc2, 1, ipbintoc) != ERR_OK) {
         DWC_LOG("FATAL: Failed to read toc, session %d\n", 2);
         send_error(hs, 404, "Not a dreamcast disc (2nd session)");
-        return;
+        goto cleanup;
     }
 
     /* Set up stream for GDI data */
-    char *output;
-    size_t output_size = 0;
     FILE *page = open_memstream(&output, &output_size);
     if(!page) {
         send_error(hs, 404, "Could not create new buffer for page");
         DWC_LOG("Error %d when creating buffer for socket %d\n", errno, hs->socket);
-        return;
+        goto cleanup;
     }
 
     /* Total track count on first line */
@@ -81,17 +87,17 @@ void send_gdi(http_state_t *hs, bool ipbintoc, unsigned defaulttype) {
 
     /* Write output to socket */
     fclose(page);
-    send_ok(hs, "text/plain", -1);
+    send_ok(hs, "text/plain", -1, "disc.gdi", view);
     char *cursor = output;
     while(output_size > 0) {
         int rv = write(hs->socket, cursor, output_size);
         if (rv <= 0) {
-            goto send_out;
-            return;
+            goto cleanup;
         }
         output_size -= rv;
         cursor += rv;
     }
-    send_out:
+    cleanup:
     FREE(output);
+    mutex_unlock(&gdrom_mutex);
 }

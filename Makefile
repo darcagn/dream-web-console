@@ -10,11 +10,11 @@ MALLOC_STATS = 1
 OBJS = source/dwc.o source/client_thread.o source/style.o romdisk.o
 
 # Send modules
-OBJS += source/send_diag.o source/send_fs_file.o source/send_hdd.o source/send_main.o
-OBJS += source/send_mem.o source/send_ok_error.o source/send_sd.o source/send_vmu.o
+OBJS += source/send_ok_error.o source/filer.o source/send_main.o
+OBJS += source/send_mem.o source/send_vmu.o
 
 # GD-ROM modules
-OBJS += source/gdrom/get_toc.o source/gdrom/send_disc_index.o source/gdrom/send_gdi.o
+OBJS += source/gdrom/gdrom.o source/gdrom/send_disc_index.o source/gdrom/send_gdi.o
 OBJS += source/gdrom/send_track.o
 
 KOS_ROMDISK_DIR = romdisk

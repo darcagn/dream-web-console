@@ -1,22 +1,46 @@
 #include "common.h"
 
-/* Send HTTP response. If len > 0, include Content-Length */
-void send_ok(http_state_t *hs, const char *content_type, size_t len) {
-    char buf[512];
+/* Send HTTP 200 OK header. */
+void send_ok(http_state_t *hs, const char *content_type,
+             size_t len, const char *filename, bool attachment) {
+    char *output;
+    size_t output_size = 0;
+    FILE *header = open_memstream(&output, &output_size);
 
+    fprintf(header, "HTTP/1.1 200 OK\r\nContent-type: %s\r\n", content_type);
+
+    /* Add Content-Length header, if specified */
     if(len > 0) {
-        sprintf(buf, "HTTP/1.0 200 OK\r\nContent-type: %s\r\nContent-Length: %d\r\nConnection: close\r\n\r\n", content_type, len);
-    } else {
-        sprintf(buf, "HTTP/1.0 200 OK\r\nContent-type: %s\r\nConnection: close\r\n\r\n", content_type);
+        fprintf(header, "Content-Length: %d\r\n", len);
     }
 
-    write(hs->socket, buf, strlen(buf));
+    /* Add Content-Disposition */
+    fprintf(header, "Content-Disposition: %s",
+            (attachment ? "attachment" : "inline"));
+
+    if(filename) {
+        fprintf(header, "; filename=\"%s\"", filename);
+    }
+
+    fprintf(header, "\r\n");
+
+    /* Add Connection close */
+    fprintf(header, "Connection: close\r\n");
+
+    /* Finish header */
+    fprintf(header, "\r\n");
+
+    fclose(header);
+    write(hs->socket, output, output_size);
+    FREE(output);
 }
 
+/* Send HTTP error page. */
 void send_error(http_state_t *hs, unsigned error_code, const char *error_str) {
     /* Write HTTP response header */
-    char buf[512];
-    sprintf(buf, "HTTP/1.0 %d %s\r\nContent-type: text/html\r\n\r\n",
+    /* FIXME: Can this be sized better? */
+    char buf[256];
+    sprintf(buf, "HTTP/1.1 %d %s\r\nContent-type: text/html\r\n\r\n",
             error_code, error_str);
     write(hs->socket, buf, strlen(buf));
 
@@ -54,4 +78,3 @@ void send_error(http_state_t *hs, unsigned error_code, const char *error_str) {
     send_out:
     FREE(output);
 }
-

@@ -7,7 +7,7 @@ KOS_INIT_FLAGS(INIT_DEFAULT | INIT_MALLOCSTATS | INIT_NET);
 KOS_INIT_FLAGS(INIT_DEFAULT | INIT_NET);
 #endif
 
-/* Main httpd thread */
+/* Main httpd server thread */
 void *httpd(void *arg) {
     int listenfd = socket(AF_INET, SOCK_STREAM, 0);
     if(listenfd < 0) {
@@ -34,6 +34,7 @@ void *httpd(void *arg) {
 
     DWC_LOG("httpd: listening for connections on socket %d\n", listenfd);
 
+    /* Loop here listening for new connections */
     for ( ; ; ) {
         struct pollfd fds = { .fd = listenfd, .events = POLLIN, .revents = 0 };
 
@@ -46,7 +47,9 @@ void *httpd(void *arg) {
             if(hs->socket < 0) {
                 FREE(hs);
             } else {
-                /* Adjust socket buffers to the largest possible buffer in KallistiOS */
+                /* Adjust socket buffers to 65535, the
+                 * largest possible buffer in KallistiOS */
+
                 uint32_t new_buf_sz = 65535;
                 setsockopt(hs->socket, SOL_SOCKET, SO_SNDBUF,
                            &new_buf_sz, sizeof(new_buf_sz));
@@ -74,7 +77,8 @@ void *httpd(void *arg) {
 }
 
 int main(int argc, char **argv) {
-    /* Automatically spin down GD-ROM once we are successfully loaded */
+    /* Automatically spin down GD-ROM
+     * once we are successfully loaded */
     cdrom_spin_down();
 
     /* Set up display and conio logging */
@@ -90,9 +94,12 @@ int main(int argc, char **argv) {
         DWC_LOG("Ready! IP address: %d.%d.%d.%d\n",
             net_default_dev->ip_addr[0], net_default_dev->ip_addr[1],
             net_default_dev->ip_addr[2], net_default_dev->ip_addr[3]);
+
+        /* Spawn thread to listen for incoming connections */
         thd_create(0, httpd, NULL);
     }
 
+    /* Loop here for controller input while http server runs */
     for ( ; ; ) {
         MAPLE_FOREACH_BEGIN(MAPLE_FUNC_CONTROLLER, cont_state_t, st)
         if (st->buttons & CONT_START) {

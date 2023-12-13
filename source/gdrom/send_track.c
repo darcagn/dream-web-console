@@ -5,7 +5,13 @@
 
 void send_track(http_state_t *hs, bool ipbintoc, size_t session, size_t track, unsigned datasel,
                 unsigned trktype, size_t secsz, size_t gap, unsigned dma, size_t secrd,
-                unsigned sub, bool abort, size_t retry) {
+                unsigned sub, bool abort, size_t retry, unsigned track_file_ext) {
+
+    if(mutex_trylock(&gdrom_mutex)) {
+        send_error(hs, 409, "GD-ROM access refused. GD-ROM is locked by another thread!");
+        DWC_LOG("httpd: Disc drive unlock refused on socket %d\n", hs->socket);
+        return;
+    }
 
     DWC_LOG("s:%d toc:%d t:%d ds:%d tt:%d ss:%d dma:%d sr:%d sub:%d retry:%d ab:%d\n",
                 ipbintoc, session, track, datasel, trktype, secsz, dma, secrd,
@@ -69,6 +75,7 @@ void send_track(http_state_t *hs, bool ipbintoc, size_t session, size_t track, u
         }
     }
 
+    bool sec_range = false; /* Are we dumping a track or sector range? */
     size_t sector_start;  /* The sector at which to begin dumping */
     size_t sector_end;    /* The last sector to dump */
 
@@ -77,6 +84,7 @@ void send_track(http_state_t *hs, bool ipbintoc, size_t session, size_t track, u
 
     if(session >= 100 && track >= 100 && track >= session) {
         /* Allow session/track number to act as sector range start/end */
+        sec_range = true;
         sector_start = session;
         sector_end = track + 1;
     } else {
@@ -140,7 +148,20 @@ void send_track(http_state_t *hs, bool ipbintoc, size_t session, size_t track, u
     size_t sector = sector_start; /* Sector variable to hold the next LBA to be dumped */
     int rv;                       /* Scratch variable to hold various return values */
 
-    send_ok(hs, "application/octet-stream", track_sz);
+    /* Generate proper filename for track download */
+    char filename[16] = {0};
+    if(sec_range) {
+        sprintf(filename, "sector_dump.bin");
+    } else {
+        switch (track_file_ext) {
+            default:
+            case TRACK_FILE_EXT_BIN: sprintf(filename, "track%02d.bin", track); break;
+            case TRACK_FILE_EXT_ISO: sprintf(filename, "track%02d.iso", track); break;
+            case TRACK_FILE_EXT_RAW: sprintf(filename, "track%02d.raw", track); break;
+        }
+    }
+
+    send_ok(hs, "application/octet-stream", track_sz, filename, true);
     do { /* from sector_start to sector_end, loop to dump entire requested range in chunks */
 
         if(sector_end - sector < secrd) {
@@ -236,4 +257,5 @@ void send_track(http_state_t *hs, bool ipbintoc, size_t session, size_t track, u
     } while(sector < sector_end);
     send_track_out:
     FREE(buf);
+    mutex_unlock(&gdrom_mutex);
 }

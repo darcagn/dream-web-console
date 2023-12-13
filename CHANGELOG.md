@@ -5,6 +5,7 @@
 - Documentation overhauled
 - Obtaining IP via DHCP now supported
 - Created new main index page
+- Use Content-Disposition header to download with proper filenames
 - Moved raw dumping from being the only page to a subpage
 - Separate pages for dumping presets
   - 2048 bytes per sector (standard ISO data)
@@ -14,7 +15,7 @@
 - Dynamically size send buffers to avoid overflows
 - source.zip download now works again
 - Dynamically size disc read buffer to improve dumping speed/performance
-- Alter subchannel dumping code to be more efficient, though if it doesn't improve transfer speed
+- Alter subchannel dumping code to be more efficient, though it doesn't improve transfer speed
 - Add gdrom_spin_down alias for cdrom_spin_down
 - Adjusted look and feel with a new dark style
 - Client connections now display IP address correctly in log
