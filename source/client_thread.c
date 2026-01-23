@@ -419,6 +419,7 @@ void *client_thread(void *p) {
     FREE(buf);
 
     /* Clean up our http state and all associated allocated memory */
+    shutdown(hs->socket, SHUT_WR);
     close(hs->socket);
     FREE(hs->path);
     FREE(hs);

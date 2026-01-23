@@ -31,7 +31,16 @@ void send_ok(http_state_t *hs, const char *content_type,
     fprintf(header, "\r\n");
 
     fclose(header);
-    write(hs->socket, output, output_size);
+    char *cursor = output;
+    size_t remaining = output_size;
+    while(remaining > 0) {
+        int rv = write(hs->socket, cursor, remaining);
+        if(rv <= 0)
+            goto send_out;
+        remaining -= rv;
+        cursor += rv;
+    }
+    send_out:
     FREE(output);
 }
 
