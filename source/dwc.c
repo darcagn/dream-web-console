@@ -63,7 +63,12 @@ void *httpd(void *arg) {
                              ipstr, hs->client.sin_port, hs->socket);
 
                 /* Create thread for new client */
-                hs->thd = thd_create(1, client_thread, hs);
+                kthread_attr_t attrs = {
+                    .create_detached = true,
+                    .label = "dwc-connect"
+                };
+
+                hs->thd = thd_create_ex(&attrs, client_thread, hs);
 
 #ifdef MALLOC_STATS
                 printf("Dispatched new thread on socket %d...\n", hs->socket);
@@ -96,7 +101,11 @@ int main(int argc, char **argv) {
             net_default_dev->ip_addr[2], net_default_dev->ip_addr[3]);
 
         /* Spawn thread to listen for incoming connections */
-        thd_create(0, httpd, NULL);
+        kthread_attr_t attrs = {
+            .label = "dwc-httpd"
+        };
+
+        thd_create_ex(&attrs, httpd, NULL);
     }
 
     /* Loop here for controller input while http server runs */
